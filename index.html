@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مدير قواعد البيانات</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg-primary:#0d0d0d;--bg-secondary:#161616;--bg-card:#1c1c1c;--bg-hover:#252525;
+--text-primary:#f0f0f0;--text-secondary:#777;--accent:#00e87b;--accent-dim:rgba(0,232,123,.12);
+--accent-hover:#00c966;--border:#2a2a2a;--danger:#ff4757;--danger-dim:rgba(255,71,87,.12);
+--warning:#ffa502;--shadow:0 4px 24px rgba(0,0,0,.4);--nav-bg:#0a0a0a;--modal-bg:rgba(0,0,0,.75);
+--scrollbar-thumb:#333;--scrollbar-track:#111;--radius:12px;--sidebar-w:240px;
+--transition:.25s cubic-bezier(.4,0,.2,1);
+}
+html{font-size:15px;scroll-behavior:smooth}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg-primary);color:var(--text-primary);min-height:100vh;overflow-x:hidden;transition:background var(--transition),color var(--transition)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--scrollbar-track)}
+::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px}
+a{text-decoration:none;color:inherit}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;font-size:inherit}
+input,select{font-family:inherit;font-size:inherit;color:var(--text-primary);background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;outline:none;transition:border var(--transition)}
+input:focus,select:focus{border-color:var(--accent)}
+
+#app{display:flex;min-height:100vh}
+#sidebar{position:fixed;inset-inline-start:0;top:0;bottom:0;width:var(--sidebar-w);background:var(--nav-bg);border-inline-end:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:transform var(--transition)}
+.sidebar-header{padding:20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.sidebar-header svg{width:28px;height:28px;flex-shrink:0}
+.sidebar-header span{font-weight:700;font-size:1.05rem;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-nav{flex:1;overflow-y:auto;padding:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:var(--text-secondary);transition:all var(--transition);margin-bottom:2px;font-size:.92rem;white-space:nowrap}
+.nav-item:hover{background:var(--bg-hover);color:var(--text-primary)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent);font-weight:600}
+.nav-item svg{width:18px;height:18px;flex-shrink:0}
+.nav-divider{height:1px;background:var(--border);margin:8px 14px}
+
+#main{flex:1;margin-inline-start:var(--sidebar-w);min-height:100vh;transition:margin var(--transition)}
+#content{padding:24px;max-width:1400px;margin:0 auto}
+
+#topbar{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:var(--nav-bg);border-bottom:1px solid var(--border);z-index:90;align-items:center;padding:0 16px;gap:12px}
+#topbar .hamburger{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px}
+#topbar .hamburger:hover{background:var(--bg-hover)}
+#topbar .page-title{font-weight:600;font-size:1rem;color:var(--accent)}
+#sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:95}
+
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:all var(--transition)}
+.card:hover{border-color:color-mix(in srgb,var(--accent) 30%,var(--border))}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{display:flex;flex-direction:column;gap:6px}
+.stat-card .stat-value{font-size:1.8rem;font-weight:800;color:var(--accent);line-height:1.1}
+.stat-card .stat-label{font-size:.82rem;color:var(--text-secondary);font-weight:500}
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px}
+.quick-card{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 12px;cursor:pointer;text-align:center}
+.quick-card svg{width:32px;height:32px;color:var(--accent)}
+.quick-card .qc-count{font-size:1.3rem;font-weight:700}
+.quick-card .qc-label{font-size:.8rem;color:var(--text-secondary)}
+
+.file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.file-card{display:flex;flex-direction:column;gap:10px;padding:14px;cursor:pointer;position:relative;overflow:hidden}
+.file-card .file-icon{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--accent-dim);margin:0 auto}
+.file-card .file-icon svg{width:24px;height:24px;color:var(--accent)}
+.file-card .file-name{font-size:.85rem;font-weight:600;word-break:break-all;text-align:center;line-height:1.3;max-height:2.6em;overflow:hidden}
+.file-card .file-meta{font-size:.75rem;color:var(--text-secondary);text-align:center}
+.file-card .file-actions{display:flex;gap:6px;justify-content:center;opacity:0;transition:opacity var(--transition)}
+.file-card:hover .file-actions{opacity:1}
+.file-actions button{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:background var(--transition)}
+.file-actions button:hover{background:var(--bg-hover)}
+.file-actions button.danger:hover{background:var(--danger-dim);color:var(--danger)}
+.file-actions button svg{width:15px;height:15px}
+
+.file-list{display:flex;flex-direction:column;gap:2px}
+.file-row{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:12px;align-items:center;padding:10px 14px;border-radius:8px;transition:background var(--transition)}
+.file-row:hover{background:var(--bg-hover)}
+.file-row .fr-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--accent-dim);flex-shrink:0}
+.file-row .fr-icon svg{width:18px;height:18px;color:var(--accent)}
+.file-row .fr-name{font-size:.88rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-row .fr-ext{font-size:.75rem;color:var(--text-secondary);background:var(--bg-secondary);padding:2px 8px;border-radius:4px;font-weight:600;white-space:nowrap}
+.file-row .fr-size{font-size:.78rem;color:var(--text-secondary);white-space:nowrap}
+.file-row .fr-actions{display:flex;gap:4px}
+.file-row .fr-actions button{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background var(--transition)}
+.file-row .fr-actions button:hover{background:var(--bg-hover)}
+.file-row .fr-actions button.danger:hover{background:var(--danger-dim);color:var(--danger)}
+.file-row .fr-actions button svg{width:14px;height:14px}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:20px}
+.search-box{flex:1;min-width:200px;position:relative}
+.search-box input{width:100%;padding-inline-start:36px}
+.search-box svg{position:absolute;inset-inline-start:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-secondary)}
+.search-count{font-size:.82rem;color:var(--text-secondary);white-space:nowrap}
+.tool-btn{height:38px;padding:0 14px;border-radius:8px;display:flex;align-items:center;gap:6px;font-size:.85rem;font-weight:500;background:var(--bg-secondary);border:1px solid var(--border);transition:all var(--transition);white-space:nowrap}
+.tool-btn:hover{border-color:var(--accent);color:var(--accent)}
+.tool-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+
+.tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px;margin-bottom:20px;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{height:0}
+.tab-btn{padding:8px 16px;border-radius:8px;font-size:.82rem;font-weight:500;color:var(--text-secondary);background:var(--bg-secondary);border:1px solid transparent;white-space:nowrap;transition:all var(--transition)}
+.tab-btn:hover{color:var(--text-primary)}
+.tab-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+.tab-btn .tab-count{margin-inline-start:6px;font-size:.72rem;opacity:.7}
+
+.db-list{display:flex;flex-direction:column;gap:10px}
+.db-card{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer}
+.db-card .db-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--accent-dim);flex-shrink:0}
+.db-card .db-icon svg{width:22px;height:22px;color:var(--accent)}
+.db-card .db-info{flex:1;min-width:0}
+.db-card .db-name{font-weight:600;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-card .db-meta{font-size:.78rem;color:var(--text-secondary);margin-top:2px}
+.db-card .db-actions{display:flex;gap:6px;opacity:0;transition:opacity var(--transition)}
+.db-card:hover .db-actions{opacity:1}
+.db-card .db-actions button{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:background var(--transition)}
+.db-card .db-actions button:hover{background:var(--bg-hover)}
+.db-card .db-actions button.danger:hover{background:var(--danger-dim);color:var(--danger)}
+.db-card .db-actions button svg{width:15px;height:15px}
+
+#audio-player-bar{position:fixed;bottom:0;left:0;right:0;height:64px;background:var(--nav-bg);border-top:1px solid var(--border);display:none;align-items:center;padding:0 20px;gap:14px;z-index:110}
+#audio-player-bar.visible{display:flex}
+.apb-info{flex:1;min-width:0}
+.apb-info .apb-title{font-size:.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apb-info .apb-sub{font-size:.75rem;color:var(--text-secondary)}
+.apb-controls{display:flex;align-items:center;gap:10px}
+.apb-controls button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background var(--transition)}
+.apb-controls button:hover{background:var(--bg-hover)}
+.apb-controls .play-btn{width:42px;height:42px;background:var(--accent);color:#000}
+.apb-controls .play-btn:hover{background:var(--accent-hover)}
+.apb-progress{flex:2;max-width:500px;display:flex;align-items:center;gap:8px}
+.apb-progress input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:4px;background:var(--border);border:none;border-radius:2px;outline:none;cursor:pointer}
+.apb-progress input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer}
+.apb-time{font-size:.72rem;color:var(--text-secondary);white-space:nowrap;min-width:80px;text-align:center}
+.apb-vol{width:80px}
+.apb-vol input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:3px;background:var(--border);border:none;border-radius:2px;outline:none;cursor:pointer}
+.apb-vol input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--accent);cursor:pointer}
+
+#preview-modal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:var(--modal-bg);padding:20px;animation:fadeIn .2s}
+#preview-modal.visible{display:flex}
+.preview-container{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;animation:slideUp .25s}
+.preview-header{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.preview-header .ph-name{flex:1;font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.preview-header button{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:background var(--transition)}
+.preview-header button:hover{background:var(--bg-hover)}
+.preview-body{flex:1;overflow:auto;padding:16px;display:flex;align-items:center;justify-content:center;min-height:200px}
+.preview-body img{max-width:100%;max-height:65vh;border-radius:8px;object-fit:contain}
+.preview-body video{max-width:100%;max-height:65vh;border-radius:8px}
+.preview-body audio{width:100%;max-width:400px}
+.preview-body pre{width:100%;max-height:65vh;overflow:auto;padding:12px;background:var(--bg-secondary);border-radius:8px;font-size:.82rem;font-family:'Courier New',monospace;white-space:pre-wrap;word-break:break-all;text-align:start;direction:ltr}
+.preview-body .no-preview{text-align:center;color:var(--text-secondary);display:flex;flex-direction:column;align-items:center;gap:10px}
+.preview-body .no-preview svg{width:48px;height:48px;opacity:.4}
+
+#modal-overlay{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:var(--modal-bg);padding:20px}
+#modal-overlay.visible{display:flex}
+.modal-box{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);width:100%;max-width:420px;padding:24px;animation:slideUp .25s}
+.modal-box h3{font-size:1.05rem;font-weight:700;margin-bottom:8px}
+.modal-box p{font-size:.88rem;color:var(--text-secondary);margin-bottom:18px;line-height:1.5}
+.modal-box input{width:100%;margin-bottom:16px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.btn{padding:8px 20px;border-radius:8px;font-size:.88rem;font-weight:600;transition:all var(--transition)}
+.btn-primary{background:var(--accent);color:#000}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{opacity:.85}
+.btn-ghost{background:var(--bg-secondary);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+.settings-section{margin-bottom:28px}
+.settings-section h3{font-size:1rem;font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;gap:12px}
+.setting-row .sr-label{font-size:.9rem;font-weight:500}
+.setting-row .sr-desc{font-size:.78rem;color:var(--text-secondary);margin-top:2px}
+.theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:10px}
+.theme-option{padding:14px;border-radius:10px;border:2px solid var(--border);cursor:pointer;text-align:center;transition:all var(--transition);font-size:.82rem;font-weight:600}
+.theme-option:hover{border-color:var(--text-secondary)}
+.theme-option.active{border-color:var(--accent);background:var(--accent-dim)}
+.theme-option .to-preview{width:40px;height:40px;border-radius:8px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center}
+.toggle{position:relative;width:44px;height:24px;border-radius:12px;background:var(--border);cursor:pointer;transition:background var(--transition);flex-shrink:0}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;top:3px;inset-inline-start:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform var(--transition)}
+.toggle.on::after{transform:translateX(20px)}
+[dir="rtl"] .toggle.on::after{transform:translateX(-20px)}
+.lang-btns{display:flex;gap:8px}
+.lang-btn{flex:1;padding:10px;border-radius:8px;border:2px solid var(--border);text-align:center;font-weight:600;font-size:.9rem;transition:all var(--transition)}
+.lang-btn.active{border-color:var(--accent);background:var(--accent-dim);color:var(--accent)}
+
+#toast-container{position:fixed;bottom:80px;inset-inline-end:20px;z-index:300;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);font-size:.85rem;font-weight:500;animation:slideIn .3s;box-shadow:var(--shadow);display:flex;align-items:center;gap:8px;max-width:320px}
+.toast.success{border-color:var(--accent);color:var(--accent)}
+.toast.error{border-color:var(--danger);color:var(--danger)}
+
+#loading-screen{position:fixed;inset:0;z-index:500;background:var(--bg-primary);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .3s}
+#loading-screen.hidden{opacity:0;pointer-events:none}
+.loader{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+.loading-text{font-size:.9rem;color:var(--text-secondary);text-align:center}
+.loading-progress{width:200px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.loading-progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .3s;width:0}
+
+#matrix-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.15}
+#matrix-canvas.hidden{display:none}
+
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--text-secondary);text-align:center;gap:12px}
+.empty-state svg{width:56px;height:56px;opacity:.3}
+.empty-state p{font-size:.95rem}
+
+.storage-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-top:8px}
+.storage-bar-fill{height:100%;background:var(--accent);border-radius:4px;transition:width .5s}
+
+@media(max-width:768px){
+#sidebar{transform:translateX(100%)}
+[dir="ltr"] #sidebar{transform:translateX(-100%)}
+#sidebar.open{transform:translateX(0)}
+#sidebar-overlay.open{display:block}
+#topbar{display:flex}
+#main{margin-inline-start:0;padding-top:56px}
+#content{padding:16px}
+.file-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.file-row{grid-template-columns:auto 1fr auto auto;gap:8px}
+.file-row .fr-size{display:none}
+.stat-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+.apb-progress{display:none}
+.apb-vol{display:none}
+.quick-grid{grid-template-columns:repeat(2,1fr)}
+#audio-player-bar{padding-bottom:env(safe-area-inset-bottom)}
+}
+@media(max-width:480px){
+.stat-grid{grid-template-columns:1fr 1fr}
+.file-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.theme-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+[dir="rtl"] @keyframes slideIn{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:translateX(0)}}
+
+@media(prefers-reduced-motion:reduce){
+*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important}
+}
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="loader"></div>
+  <div class="loading-text" id="loading-text">جاري الفحص...</div>
+  <div class="loading-progress"><div class="loading-progress-bar" id="loading-bar"></div></div>
+</div>
+
+<canvas id="matrix-canvas" class="hidden"></canvas>
+
+<div id="app">
+  <div id="topbar">
+    <button class="hamburger" onclick="toggleSidebar()">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h14M3 10h14M3 14h14"/></svg>
+    </button>
+    <span class="page-title" id="topbar-title">لوحة التحكم</span>
+  </div>
+  <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
+      <span id="sidebar-title">مدير قواعد البيانات</span>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+  </aside>
+
+  <div id="main"><div id="content"></div></div>
+</div>
+
+<div id="audio-player-bar">
+  <button class="play-btn" onclick="togglePlayPause()" aria-label="Play/Pause">
+    <svg id="apb-play-icon" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+  </button>
+  <div class="apb-info">
+    <div class="apb-title" id="apb-title">-</div>
+    <div class="apb-sub" id="apb-sub">-</div>
+  </div>
+  <div class="apb-progress">
+    <span class="apb-time" id="apb-current">0:00</span>
+    <input type="range" id="apb-seek" min="0" max="100" value="0" oninput="seekAudio(this.value)">
+    <span class="apb-time" id="apb-duration">0:00</span>
+  </div>
+  <div class="apb-vol">
+    <input type="range" id="apb-vol" min="0" max="100" value="80" oninput="setVolume(this.value)">
+  </div>
+  <button onclick="closeAudioPlayer()" aria-label="Close">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+  </button>
+</div>
+<audio id="audio-element" preload="auto"></audio>
+
+<div id="preview-modal">
+  <div class="preview-container">
+    <div class="preview-header">
+      <span class="ph-name" id="preview-name"></span>
+      <button onclick="downloadPreviewFile()" title="Download"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v9m0 0l-3-3m3 3l3-3M3 14h10"/></svg></button>
+      <button onclick="closePreview()"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    </div>
+    <div class="preview-body" id="preview-body"></div>
+  </div>
+</div>
+
+<div id="modal-overlay">
+  <div class="modal-box" id="modal-box"></div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+/* ===== ثوابت ===== */
+const THEMES = {
+  dark:{label:{ar:'داكن',en:'Dark'},preview:'linear-gradient(135deg,#0d0d0d,#1c1c1c)','--bg-primary':'#0d0d0d','--bg-secondary':'#161616','--bg-card':'#1c1c1c','--bg-hover':'#252525','--text-primary':'#f0f0f0','--text-secondary':'#777','--accent':'#00e87b','--accent-dim':'rgba(0,232,123,.12)','--accent-hover':'#00c966','--border':'#2a2a2a','--danger':'#ff4757','--danger-dim':'rgba(255,71,87,.12)','--warning':'#ffa502','--shadow':'0 4px 24px rgba(0,0,0,.4)','--nav-bg':'#0a0a0a','--modal-bg':'rgba(0,0,0,.75)','--scrollbar-thumb':'#333','--scrollbar-track':'#111'},
+  light:{label:{ar:'فاتح',en:'Light'},preview:'linear-gradient(135deg,#f5f5f5,#fff)','--bg-primary':'#f5f5f5','--bg-secondary':'#ffffff','--bg-card':'#ffffff','--bg-hover':'#f0f0f0','--text-primary':'#1a1a1a','--text-secondary':'#666','--accent':'#00875a','--accent-dim':'rgba(0,135,90,.1)','--accent-hover':'#006b48','--border':'#e0e0e0','--danger':'#e53e3e','--danger-dim':'rgba(229,62,62,.1)','--warning':'#d69e2e','--shadow':'0 4px 24px rgba(0,0,0,.08)','--nav-bg':'#ffffff','--modal-bg':'rgba(0,0,0,.4)','--scrollbar-thumb':'#ccc','--scrollbar-track':'#eee'},
+  hacker:{label:{ar:'هاكر',en:'Hacker'},preview:'linear-gradient(135deg,#000,#001a00)','--bg-primary':'#000','--bg-secondary':'#0a0a0a','--bg-card':'#0d0d0d','--bg-hover':'#111','--text-primary':'#00ff41','--text-secondary':'#008822','--accent':'#00ff41','--accent-dim':'rgba(0,255,65,.1)','--accent-hover':'#00cc33','--border':'#003300','--danger':'#ff0040','--danger-dim':'rgba(255,0,64,.1)','--warning':'#ffff00','--shadow':'0 0 20px rgba(0,255,65,.1)','--nav-bg':'#000','--modal-bg':'rgba(0,0,0,.85)','--scrollbar-thumb':'#003300','--scrollbar-track':'#000'},
+  ocean:{label:{ar:'محيط',en:'Ocean'},preview:'linear-gradient(135deg,#0a1628,#142740)','--bg-primary':'#0a1628','--bg-secondary':'#0f1f35','--bg-card':'#142740','--bg-hover':'#1a3050','--text-primary':'#e0f0ff','--text-secondary':'#5a8ab5','--accent':'#00b4d8','--accent-dim':'rgba(0,180,216,.15)','--accent-hover':'#0096c7','--border':'#1a3050','--danger':'#ff6b6b','--danger-dim':'rgba(255,107,107,.15)','--warning':'#ffd166','--shadow':'0 4px 24px rgba(0,0,0,.5)','--nav-bg':'#071020','--modal-bg':'rgba(0,0,0,.7)','--scrollbar-thumb':'#1a3050','--scrollbar-track':'#0a1628'},
+  sunset:{label:{ar:'غروب',en:'Sunset'},preview:'linear-gradient(135deg,#1a0a0a,#2a1515)','--bg-primary':'#1a0a0a','--bg-secondary':'#221010','--bg-card':'#2a1515','--bg-hover':'#351c1c','--text-primary':'#ffe0d0','--text-secondary':'#b07060','--accent':'#ff6b35','--accent-dim':'rgba(255,107,53,.15)','--accent-hover':'#e55a28','--border':'#351c1c','--danger':'#ff4757','--danger-dim':'rgba(255,71,87,.15)','--warning':'#ffc048','--shadow':'0 4px 24px rgba(0,0,0,.5)','--nav-bg':'#150808','--modal-bg':'rgba(0,0,0,.7)','--scrollbar-thumb':'#351c1c','--scrollbar-track':'#1a0a0a'},
+  rose:{label:{ar:'وردي',en:'Rose'},preview:'linear-gradient(135deg,#140a14,#241524)','--bg-primary':'#140a14','--bg-secondary':'#1c101c','--bg-card':'#241524','--bg-hover':'#2e1c2e','--text-primary':'#f0e0f0','--text-secondary':'#906090','--accent':'#e040a0','--accent-dim':'rgba(224,64,160,.15)','--accent-hover':'#c03588','--border':'#2e1c2e','--danger':'#ff4757','--danger-dim':'rgba(255,71,87,.15)','--warning':'#ffb347','--shadow':'0 4px 24px rgba(0,0,0,.5)','--nav-bg':'#100810','--modal-bg':'rgba(0,0,0,.7)','--scrollbar-thumb':'#2e1c2e','--scrollbar-track':'#140a14'}
+};
+
+const I18N = {
+  ar:{appName:'مدير قواعد البيانات',dashboard:'لوحة التحكم',allFiles:'كل الملفات',databases:'قواعد البيانات',music:'الموسيقى',videos:'الفيديوهات',images:'الصور',settings:'الإعدادات',searchPlaceholder:'ابحث بالاسم أو الامتداد...',results:'نتيجة',resultsPlural:'نتائج',noResults:'لا توجد نتائج',noFiles:'لا توجد ملفات',noDatabases:'لا توجد قواعد بيانات',download:'تحميل',delete:'حذف',preview:'معاينة',rename:'إعادة تسمية',cancel:'إلغاء',confirm:'تأكيد',save:'حفظ',close:'إغلاق',totalDatabases:'إجمالي القواعد',totalFiles:'إجمالي الملفات',totalSize:'الحجم الإجمالي',recentFiles:'أحدث الملفات',quickAccess:'وصول سريع',deleteDbConfirm:'هل أنت متأكد من حذف قاعدة البيانات "',deleteFileConfirm:'هل أنت متأكد من حذف الملف "',deleteAllConfirm:'هل أنت متأكد من مسح جميع البيانات؟ لا يمكن التراجع.',enterNewName:'أدخل الاسم الجديد',fileName:'اسم الملف',fileSize:'الحجم',fileType:'النوع',extension:'الامتداد',storeName:'المخزن',actions:'الإجراءات',viewAll:'عرض الكل',theme:'السمة',language:'اللغة',effects:'التأثيرات البصرية',matrixRain:'مطر المصفوفة',about:'حول التطبيق',version:'الإصدار',clearAllData:'مسح جميع البيانات',files:'ملفات',stores:'مخازن',back:'رجوع',filePreview:'معاينة الملف',noPreviewAvailable:'لا توجد معاينة متاحة',dbDetails:'تفاصيل القاعدة',allExtensions:'الكل',sortBy:'ترتيب حسب',sortName:'الاسم',sortSize:'الحجم',sortType:'النوع',gridView:'شبكي',listView:'قائمة',refresh:'تحديث',scanning:'جاري فحص قواعد البيانات...',deleted:'تم الحذف بنجاح',dbDeleted:'تم حذف القاعدة',renamed:'تمت إعادة التسمية',allCleared:'تم مسح جميع البيانات',unknownType:'نوع غير معروف',storageUsed:'التخزين المستخدم',of:'من',noMusic:'لا توجد ملفات صوتية',noVideos:'لا توجد ملفات فيديو',noImages:'لا توجد صور',matrixIntensity:'شدة المطر',scanError:'حدث خطأ أثناء الفحص'},
+  en:{appName:'Database Manager',dashboard:'Dashboard',allFiles:'All Files',databases:'Databases',music:'Music',videos:'Videos',images:'Images',settings:'Settings',searchPlaceholder:'Search by name or extension...',results:'result',resultsPlural:'results',noResults:'No results found',noFiles:'No files found',noDatabases:'No databases found',download:'Download',delete:'Delete',preview:'Preview',rename:'Rename',cancel:'Cancel',confirm:'Confirm',save:'Save',close:'Close',totalDatabases:'Total Databases',totalFiles:'Total Files',totalSize:'Total Size',recentFiles:'Recent Files',quickAccess:'Quick Access',deleteDbConfirm:'Delete database "',deleteFileConfirm:'Delete file "',deleteAllConfirm:'Clear all data? This cannot be undone.',enterNewName:'Enter new name',fileName:'File Name',fileSize:'Size',fileType:'Type',extension:'Extension',storeName:'Store',actions:'Actions',viewAll:'View All',theme:'Theme',language:'Language',effects:'Visual Effects',matrixRain:'Matrix Rain',about:'About',version:'Version',clearAllData:'Clear All Data',files:'files',stores:'stores',back:'Back',filePreview:'File Preview',noPreviewAvailable:'No preview available',dbDetails:'Database Details',allExtensions:'All',sortBy:'Sort by',sortName:'Name',sortSize:'Size',sortType:'Type',gridView:'Grid',listView:'List',refresh:'Refresh',scanning:'Scanning databases...',deleted:'Deleted successfully',dbDeleted:'Database deleted',renamed:'Renamed successfully',allCleared:'All data cleared',unknownType:'Unknown Type',storageUsed:'Storage Used',of:'of',noMusic:'No audio files',noVideos:'No video files',noImages:'No images',matrixIntensity:'Rain Intensity',scanError:'Error during scan'}
+};
+
+const NAV_ITEMS = [
+  {id:'dashboard',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'},
+  {id:'allFiles',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>'},
+  {id:'databases',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>',divider:true},
+  {id:'music',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'},
+  {id:'videos',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="15" height="16" rx="2"/><path d="M17 8l5-3v14l-5-3"/></svg>'},
+  {id:'images',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',divider:true},
+  {id:'settings',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>'}
+];
+
+const FILE_ICONS = {
+  image:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
+  audio:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+  video:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="15" height="16" rx="2"/><path d="M17 8l5-3v14l-5-3"/></svg>',
+  document:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>',
+  text:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  archive:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>',
+  other:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg>'
+};
+
+const IMG_EXTS=['jpg','jpeg','png','gif','bmp','webp','svg','ico','tiff','avif'];
+const AUDIO_EXTS=['mp3','wav','ogg','flac','aac','m4a','wma','opus'];
+const VIDEO_EXTS=['mp4','webm','avi','mkv','mov','flv','wmv','ogv','m4v'];
+const DOC_EXTS=['pdf','doc','docx','xls','xlsx','ppt','pptx','odt','ods'];
+const TEXT_EXTS=['txt','csv','json','xml','html','css','js','ts','py','java','cpp','c','h','php','rb','go','rs','md','yaml','yml','ini','cfg','log','sql','sh','bat','toml','env'];
+const ARCHIVE_EXTS=['zip','rar','7z','tar','gz','bz2','xz'];
+
+const MAX_RECORDS = 10000;   /* حد أقصى للسجلات لكل مخزن */
+const DB_TIMEOUT = 6000;     /* مهلة فتح قاعدة بيانات */
+const STORE_TIMEOUT = 12000; /* مهلة قراءة مخزن */
+
+/* ===== الحالة ===== */
+const state = {
+  lang: localStorage.getItem('dbm_lang') || 'ar',
+  theme: localStorage.getItem('dbm_theme') || 'dark',
+  matrixRain: localStorage.getItem('dbm_matrix') === 'true',
+  matrixIntensity: parseInt(localStorage.getItem('dbm_matrix_int')) || 50,
+  viewMode: localStorage.getItem('dbm_view') || 'grid',
+  sortMode: 'name',
+  currentPage: 'dashboard',
+  pageParams: {},
+  allDatabases: [],
+  allFiles: [],
+  storageInfo: null,
+  currentAudioFile: null,
+  searchQuery: ''
+};
+
+/* ===== أدوات ===== */
+function t(key){ return (I18N[state.lang]||{})[key] || key; }
+function formatSize(bytes){
+  if(!bytes||bytes===0) return '0 B';
+  const u=['B','KB','MB','GB'];
+  const i=Math.floor(Math.log(bytes)/Math.log(1024));
+  return (bytes/Math.pow(1024,i)).toFixed(i>0?1:0)+' '+u[i];
+}
+function getExt(name, mime){
+  if(name && name.includes('.')){
+    const p=name.split('.');
+    const e=p[p.length-1].toLowerCase();
+    if(e.length<=8 && /^[a-z0-9]+$/.test(e)) return e;
+  }
+  if(mime){
+    const m={'image/jpeg':'jpg','image/png':'png','image/gif':'gif','image/webp':'webp','image/svg+xml':'svg','audio/mpeg':'mp3','audio/wav':'wav','audio/ogg':'ogg','audio/mp4':'m4a','video/mp4':'mp4','video/webm':'webm','application/pdf':'pdf','application/json':'json','text/plain':'txt','text/html':'html','text/css':'css','text/javascript':'js','text/csv':'csv','application/zip':'zip','application/xml':'xml','application/octet-stream':'bin'};
+    return m[mime]||'bin';
+  }
+  return 'bin';
+}
+function getCategory(ext){
+  if(IMG_EXTS.includes(ext)) return 'image';
+  if(AUDIO_EXTS.includes(ext)) return 'audio';
+  if(VIDEO_EXTS.includes(ext)) return 'video';
+  if(DOC_EXTS.includes(ext)) return 'document';
+  if(TEXT_EXTS.includes(ext)) return 'text';
+  if(ARCHIVE_EXTS.includes(ext)) return 'archive';
+  return 'other';
+}
+function getFileIcon(cat){ return FILE_ICONS[cat]||FILE_ICONS.other; }
+function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ===== Timeout لـ Promises ===== */
+function withTimeout(promise, ms){
+  return new Promise((resolve, reject)=>{
+    const timer = setTimeout(()=> reject(new Error('Timeout')), ms);
+    promise.then(v=>{ clearTimeout(timer); resolve(v); }).catch(e=>{ clearTimeout(timer); reject(e); });
+  });
+}
+
+/* ===== قاعدة البيانات — النسخة المُصلحة ===== */
+function openDB(name, version){
+  /* نفتح بالإصدار المحدد لمنع onupgradeneeded من التسبب بالتعليق */
+  return withTimeout(new Promise((resolve, reject)=>{
+    const req = indexedDB.open(name, version !== undefined ? version : undefined);
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror   = ()=> reject(req.error);
+    req.onblocked = ()=> reject(new Error('Blocked: '+name));
+    /* onupgradeneeded لن يُطلق لأننا نفتح بنفس إصدار القاعدة الموجودة */
+  }), DB_TIMEOUT);
+}
+
+function readAllRecords(db, storeName){
+  return withTimeout(new Promise((resolve, reject)=>{
+    try {
+      const tx = db.transaction(storeName, 'readonly');
+      const store = tx.objectStore(storeName);
+      const records = [];
+      const cur = store.openCursor();
+      let count = 0;
+
+      cur.onsuccess = function(e){
+        const c = e.target.result;
+        if(c){
+          if(count < MAX_RECORDS){
+            records.push({key: c.key, value: c.value});
+            count++;
+            c.continue();
+          } else {
+            resolve(records); /* تجاوز الحد الأقصى */
+          }
+        } else {
+          resolve(records);
+        }
+      };
+      cur.onerror = ()=> reject(cur.error);
+    } catch(e){
+      reject(e);
+    }
+  }), STORE_TIMEOUT);
+}
+
+function extractFileData(record){
+  if(record instanceof Blob) return {blob:record, name:'unnamed', type:record.type, size:record.size};
+  if(record instanceof ArrayBuffer) return {blob:new Blob([record]), name:'unnamed.bin', type:'application/octet-stream', size:record.byteLength};
+  if(typeof record==='object' && record!==null){
+    let blob=null, name='unnamed', type='';
+    /* البحث عن Blob في الخصائص الشائعة */
+    const bp=['file','blob','data','content','fileData','attachment','image','audio','video','thumb','thumbnail','photo','picture','source'];
+    for(const p of bp){ if(record[p] instanceof Blob && record[p].size > 0){blob=record[p]; break;} }
+    /* بحث شامل إذا لم يجد */
+    if(!blob){
+      const keys = Object.keys(record);
+      for(let i=0; i<keys.length; i++){
+        if(record[keys[i]] instanceof Blob && record[keys[i]].size > 0){blob=record[keys[i]]; break;}
+        if(record[keys[i]] instanceof ArrayBuffer){blob=new Blob([record[keys[i]]]); break;}
+      }
+    }
+    if(blob){
+      const np=['name','fileName','filename','title','label','originalName','displayName'];
+      for(const p of np){ if(record[p]&&typeof record[p]==='string'){name=record[p]; break;} }
+      const tp=['type','mimeType','contentType','fileType','mime'];
+      for(const p of tp){ if(record[p]&&typeof record[p]==='string'){type=record[p]; break;} }
+      if(!type) type=blob.type||'application/octet-stream';
+      return {blob, name, type, size:blob.size};
+    }
+  }
+  return null;
+}
+
+async function scanAllData(){
+  state.allDatabases=[];
+  state.allFiles=[];
+
+  let dbList=[];
+  try{ dbList = await indexedDB.databases(); } catch(e){ return; }
+
+  const total = dbList.length;
+
+  for(let i=0; i<total; i++){
+    updateLoading(i, total);
+    const dbInfo = dbList[i];
+    const dbName = dbInfo.name;
+    const dbVersion = dbInfo.version || 1;
+    const dbData = {name:dbName, version:dbVersion, stores:[], files:[], totalSize:0, error:null};
+
+    try {
+      const db = await openDB(dbName, dbVersion);
+      const storeNames = Array.from(db.objectStoreNames);
+
+      for(const sn of storeNames){
+        const si = {name:sn, files:[], recordCount:0};
+        try {
+          const records = await readAllRecords(db, sn);
+          si.recordCount = records.length;
+
+          for(const rec of records){
+            try {
+              const fd = extractFileData(rec.value);
+              if(fd){
+                const ext = getExt(fd.name, fd.type);
+                const cat = getCategory(ext);
+                const file = {
+                  ...fd, ext, cat,
+                  database:dbName, store:sn,
+                  recordKey:rec.key,
+                  id: dbName+'/'+sn+'/'+String(rec.key)
+                };
+                si.files.push(file);
+                dbData.files.push(file);
+                state.allFiles.push(file);
+                dbData.totalSize += (fd.size||0);
+              }
+            } catch(e){ /* تجاهل خطأ في سجل واحد */ }
+          }
+        } catch(e){
+          console.warn('Store error:', sn, e.message);
+        }
+        dbData.stores.push(si);
+      }
+      try{ db.close(); }catch(e){}
+    } catch(e){
+      dbData.error = e.message;
+      console.warn('DB error:', dbName, e.message);
+    }
+
+    state.allDatabases.push(dbData);
+  }
+
+  updateLoading(total, total);
+
+  /* معلومات التخزين */
+  try{
+    if(navigator.storage && navigator.storage.estimate){
+      const est = await navigator.storage.estimate();
+      state.storageInfo = {used:est.usage||0, quota:est.quota||0, pct:est.quota?((est.usage/est.quota)*100).toFixed(2):'0'};
+    }
+  }catch(e){}
+}
+
+function deleteFileFromDB(dbName, storeName, key){
+  return new Promise((resolve, reject)=>{
+    const r = indexedDB.open(dbName);
+    r.onsuccess = ()=>{
+      const db = r.result;
+      const tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).delete(key);
+      tx.oncomplete = ()=>{ db.close(); resolve(); };
+      tx.onerror = ()=>{ db.close(); reject(tx.error); };
+    };
+    r.onerror = ()=> reject(r.error);
+  });
+}
+
+function deleteDatabase(dbName){
+  return new Promise((resolve, reject)=>{
+    const r = indexedDB.deleteDatabase(dbName);
+    r.onsuccess = ()=> resolve();
+    r.onerror = ()=> reject(r.error);
+  });
+}
+
+async function renameDatabase(oldName, newName){
+  if(!newName || newName===oldName) return;
+  /* قراءة القاعدة القديمة */
+  const oldInfo = (await indexedDB.databases()).find(d=>d.name===oldName);
+  const oldVer = oldInfo ? oldInfo.version : 1;
+  const db = await openDB(oldName, oldVer);
+
+  const storeConfigs = [];
+  const storeData = {};
+  for(const sn of Array.from(db.objectStoreNames)){
+    const store = db.transaction(sn,'readonly').objectStore(sn);
+    const idxArr = [];
+    for(const idxN of Array.from(store.indexNames)){
+      const idx = store.index(idxN);
+      idxArr.push({name:idxN, keyPath:idx.keyPath, unique:idx.unique, multiEntry:idx.multiEntry});
+    }
+    storeConfigs.push({name:sn, keyPath:store.keyPath, autoIncrement:store.autoIncrement, indexes:idxArr});
+    storeData[sn] = await readAllRecords(db, sn);
+  }
+  db.close();
+
+  /* إنشاء القاعدة الجديدة بنفس البنية */
+  const newVer = Math.max(oldVer, 1);
+  const newDb = await new Promise((resolve, reject)=>{
+    const r = indexedDB.open(newName, newVer);
+    r.onupgradeneeded = e=>{
+      const d = e.target.result;
+      for(const sc of storeConfigs){
+        const s = d.createObjectStore(sc.name, {keyPath:sc.keyPath||undefined, autoIncrement:sc.autoIncrement});
+        for(const ix of sc.indexes) s.createIndex(ix.name, ix.keyPath, {unique:ix.unique, multiEntry:ix.multiEntry});
+      }
+    };
+    r.onsuccess = e=> resolve(e.target.result);
+    r.onerror = ()=> reject(r.error);
+  });
+
+  /* نسخ البيانات */
+  for(const sn of Object.keys(storeData)){
+    const store = newDb.transaction(sn,'readwrite').objectStore(sn);
+    for(const rec of storeData[sn]){
+      try{ store.put(rec.value, rec.key); }catch(e){}
+    }
+  }
+  newDb.close();
+  await deleteDatabase(oldName);
+}
+
+/* ===== واجهة المستخدم ===== */
+function toast(msg, type='success'){
+  const c = document.getElementById('toast-container');
+  const d = document.createElement('div');
+  d.className = 'toast '+type;
+  const icon = type==='success'
+    ? '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8l3 3 5-6"/></svg>'
+    : '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="7"/><path d="M5 5l6 6M11 5l-6 6"/></svg>';
+  d.innerHTML = icon + escapeHtml(msg);
+  c.appendChild(d);
+  setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300);},2500);
+}
+
+function showModal(html){
+  document.getElementById('modal-box').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('visible');
+}
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('visible'); }
+
+function updateLoading(current, total){
+  const pct = total ? Math.round((current/total)*100) : 0;
+  const bar = document.getElementById('loading-bar');
+  const txt = document.getElementById('loading-text');
+  if(bar) bar.style.width = pct+'%';
+  if(txt) txt.textContent = t('scanning')+' ('+current+'/'+total+')';
+}
+
+function renderSidebar(){
+  const nav = document.getElementById('sidebar-nav');
+  let html = '';
+  for(const item of NAV_ITEMS){
+    if(item.divider) html += '<div class="nav-divider"></div>';
+    html += '<a class="nav-item'+(state.currentPage===item.id?' active':'')+'" data-nav="'+item.id+'">'+item.icon+'<span>'+t(item.id)+'</span></a>';
+  }
+  nav.innerHTML = html;
+  document.getElementById('sidebar-title').textContent = t('appName');
+}
+
+function navigate(page, params={}){
+  state.currentPage = page;
+  state.pageParams = params;
+  state.searchQuery = '';
+  renderSidebar();
+  document.getElementById('topbar-title').textContent = t(page);
+  renderPage();
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
+function renderPage(){
+  const c = document.getElementById('content');
+  switch(state.currentPage){
+    case 'dashboard': c.innerHTML = renderDashboard(); break;
+    case 'allFiles':  c.innerHTML = renderAllFiles(); break;
+    case 'databases':  c.innerHTML = renderDatabases(); break;
+    case 'dbDetail':  c.innerHTML = renderDbDetail(); break;
+    case 'music':     c.innerHTML = renderMediaPage('audio'); break;
+    case 'videos':    c.innerHTML = renderMediaPage('video'); break;
+    case 'images':    c.innerHTML = renderMediaPage('image'); break;
+    case 'settings':  c.innerHTML = renderSettings(); break;
+    default:          c.innerHTML = renderDashboard();
+  }
+}
+
+/* ===== قوالب الملفات ===== */
+function renderFileCard(f){
+  return '<div class="card file-card" data-action="preview" data-id="'+escapeHtml(f.id)+'">'
+    +'<div class="file-icon">'+getFileIcon(f.cat)+'</div>'
+    +'<div class="file-name">'+escapeHtml(f.name)+'</div>'
+    +'<div class="file-meta">'+escapeHtml(f.ext.toUpperCase())+' &middot; '+formatSize(f.size)+'</div>'
+    +'<div class="file-actions">'
+      +'<button data-action="preview" data-id="'+escapeHtml(f.id)+'" title="'+t('preview')+'"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="7.5" r="3"/></svg></button>'
+      +'<button data-action="download" data-id="'+escapeHtml(f.id)+'" title="'+t('download')+'"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M7.5 2.5v8m0 0L5 8m2.5 2.5L10 8M3 11.5v2a1 1 0 001 1h6a1 1 0 001-1v-2"/></svg></button>'
+      +'<button class="danger" data-action="delete-file" data-id="'+escapeHtml(f.id)+'" title="'+t('delete')+'"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h10M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M8 7v5M10 7v5M4 4l.7 8a1 1 0 001 .9h4.6a1 1 0 001-.9L12 4"/></svg></button>'
+    +'</div>'
+  +'</div>';
+}
+
+function renderFileRow(f){
+  return '<div class="file-row">'
+    +'<div class="fr-icon">'+getFileIcon(f.cat)+'</div>'
+    +'<div class="fr-name" title="'+escapeHtml(f.name)+'">'+escapeHtml(f.name)+'</div>'
+    +'<div class="fr-ext">'+escapeHtml(f.ext.toUpperCase())+'</div>'
+    +'<div class="fr-size">'+formatSize(f.size)+'</div>'
+    +'<div class="fr-actions">'
+      +'<button data-action="preview" data-id="'+escapeHtml(f.id)+'" title="'+t('preview')+'"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="3"/></svg></button>'
+      +'<button data-action="download" data-id="'+escapeHtml(f.id)+'" title="'+t('download')+'"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 2v7m0 0L5 7m2 2l2-2M3 10v1.5a.5.5 0 00.5.5h7a.5.5 0 00.5-.5V10"/></svg></button>'
+      +'<button class="danger" data-action="delete-file" data-id="'+escapeHtml(f.id)+'" title="'+t('delete')+'"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h10M4 3V2h6v1M5 5v5M7 5v5M9 5v5M3 3l.6 7.5a1 1 0 001 .9h3.8a1 1 0 001-.9L11 3"/></svg></button>'
+    +'</div>'
+  +'</div>';
+}
+
+function getFilteredFiles(files, query){
+  if(!query) return files;
+  const q = query.toLowerCase().trim();
+  return files.filter(f=>{
+    return (f.name||'').toLowerCase().includes(q)
+        || (f.ext||'').toLowerCase().includes(q)
+        || (f.database||'').toLowerCase().includes(q);
+  });
+}
+
+function sortFiles(files){
+  const sorted = [...files];
+  if(state.sortMode==='name') sorted.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  else if(state.sortMode==='size') sorted.sort((a,b)=>(b.size||0)-(a.size||0));
+  else if(state.sortMode==='type') sorted.sort((a,b)=>(a.ext||'').localeCompare(b.ext||''));
+  return sorted;
+}
+
+function renderToolbar(files, showSort){
+  const filtered = sortFiles(getFilteredFiles(files, state.searchQuery));
+  const cnt = filtered.length;
+  const countTxt = cnt + (cnt===1 ? ' '+t('results') : ' '+t('resultsPlural'));
+
+  let sortHtml = '';
+  if(showSort !== false){
+    sortHtml = '<select id="sort-select" class="tool-btn" style="padding:0 10px">'
+      +'<option value="name"'+(state.sortMode==='name'?' selected':'')+'>'+t('sortName')+'</option>'
+      +'<option value="size"'+(state.sortMode==='size'?' selected':'')+'>'+t('sortSize')+'</option>'
+      +'<option value="type"'+(state.sortMode==='type'?' selected':'')+'>'+t('sortType')+'</option>'
+      +'</select>';
+  }
+
+  let listHtml;
+  if(!filtered.length){
+    listHtml = '<div class="empty-state">'+FILE_ICONS.other+'<p>'+t('noResults')+'</p></div>';
+  } else if(state.viewMode==='grid'){
+    listHtml = '<div class="file-grid">'+filtered.map(renderFileCard).join('')+'</div>';
+  } else {
+    listHtml = '<div class="file-list">'+filtered.map(renderFileRow).join('')+'</div>';
+  }
+
+  return '<div class="toolbar">'
+    +'<div class="search-box">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>'
+      +'<input type="text" id="search-input" placeholder="'+t('searchPlaceholder')+'" value="'+escapeHtml(state.searchQuery)+'">'
+    +'</div>'
+    +'<span class="search-count">'+countTxt+'</span>'
+    +sortHtml
+    +'<button class="tool-btn'+(state.viewMode==='grid'?' active':'')+'" data-action="set-view" data-view="grid"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="1" width="5" height="5" rx="1"/><rect x="1" y="8" width="5" height="5" rx="1"/><rect x="8" y="8" width="5" height="5" rx="1"/></svg> '+t('gridView')+'</button>'
+    +'<button class="tool-btn'+(state.viewMode==='list'?' active':'')+'" data-action="set-view" data-view="list"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3h12M1 7h12M1 11h12"/></svg> '+t('listView')+'</button>'
+    +'<button class="tool-btn" data-action="refresh"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 7a6 6 0 0111.3-2.7M13 7a6 6 0 01-11.3 2.7"/><path d="M12.3 1v3.3h-3.3M1.7 13V9.7H5"/></svg>'+t('refresh')+'</button>'
+  +'</div>' + listHtml;
+}
+
+/* ===== الصفحات ===== */
+function renderDashboard(){
+  const totalFiles = state.allFiles.length;
+  const totalDbs = state.allDatabases.length;
+  const totalSize = state.allFiles.reduce((s,f)=>s+(f.size||0),0);
+  const audioCount = state.allFiles.filter(f=>f.cat==='audio').length;
+  const videoCount = state.allFiles.filter(f=>f.cat==='video').length;
+  const imageCount = state.allFiles.filter(f=>f.cat==='image').length;
+  const recent = state.allFiles.slice(-8).reverse();
+
+  let storageHtml = '';
+  if(state.storageInfo){
+    const si = state.storageInfo;
+    storageHtml = '<div class="card" style="margin-bottom:24px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.88rem;font-weight:600">'+t('storageUsed')+'</span><span style="font-size:.82rem;color:var(--text-secondary)">'+formatSize(si.used)+' '+t('of')+' '+formatSize(si.quota)+' ('+si.pct+'%)</span></div><div class="storage-bar"><div class="storage-bar-fill" style="width:'+Math.min(si.pct,100)+'%"></div></div></div>';
+  }
+
+  return storageHtml
+    +'<div class="stat-grid">'
+      +'<div class="card stat-card"><div class="stat-value">'+totalDbs+'</div><div class="stat-label">'+t('totalDatabases')+'</div></div>'
+      +'<div class="card stat-card"><div class="stat-value">'+totalFiles+'</div><div class="stat-label">'+t('totalFiles')+'</div></div>'
+      +'<div class="card stat-card"><div class="stat-value">'+formatSize(totalSize)+'</div><div class="stat-label">'+t('totalSize')+'</div></div>'
+    +'</div>'
+    +'<h2 style="font-size:1rem;font-weight:700;margin-bottom:14px">'+t('quickAccess')+'</h2>'
+    +'<div class="quick-grid">'
+      +'<div class="card quick-card" data-nav="music">'+FILE_ICONS.audio+'<div class="qc-count">'+audioCount+'</div><div class="qc-label">'+t('music')+'</div></div>'
+      +'<div class="card quick-card" data-nav="videos">'+FILE_ICONS.video+'<div class="qc-count">'+videoCount+'</div><div class="qc-label">'+t('videos')+'</div></div>'
+      +'<div class="card quick-card" data-nav="images">'+FILE_ICONS.image+'<div class="qc-count">'+imageCount+'</div><div class="qc-label">'+t('images')+'</div></div>'
+      +'<div class="card quick-card" data-nav="allFiles">'+FILE_ICONS.other+'<div class="qc-count">'+totalFiles+'</div><div class="qc-label">'+t('allFiles')+'</div></div>'
+    +'</div>'
+    +(recent.length ? '<h2 style="font-size:1rem;font-weight:700;margin-bottom:14px">'+t('recentFiles')+'</h2><div class="file-grid">'+recent.map(renderFileCard).join('')+'</div>' : '');
+}
+
+function renderAllFiles(){
+  return '<h1 style="font-size:1.3rem;font-weight:800;margin-bottom:20px">'+t('allFiles')+'</h1>'+renderToolbar(state.allFiles);
+}
+
+function renderDatabases(){
+  if(!state.allDatabases.length)
+    return '<h1 style="font-size:1.3rem;font-weight:800;margin-bottom:20px">'+t('databases')+'</h1><div class="empty-state">'+FILE_ICONS.other+'<p>'+t('noDatabases')+'</p></div>';
+
+  return '<h1 style="font-size:1.3rem;font-weight:800;margin-bottom:20px">'+t('databases')+'</h1>'
+    +'<div class="db-list">'+state.allDatabases.map(db=>{
+      const fc = db.files.length, sc = db.stores.length;
+      return '<div class="card db-card">'
+        +'<div class="db-icon">'+FILE_ICONS.other+'</div>'
+        +'<div class="db-info" data-action="open-db" data-db="'+escapeHtml(db.name)+'" style="cursor:pointer">'
+          +'<div class="db-name">'+escapeHtml(db.name)+'</div>'
+          +'<div class="db-meta">'+fc+' '+t('files')+' &middot; '+sc+' '+t('stores')+' &middot; '+formatSize(db.totalSize)+(db.error?' <span style="color:var(--danger)">('+escapeHtml(db.error)+')</span>':'')+'</div>'
+        +'</div>'
+        +'<div class="db-actions">'
+          +'<button data-action="rename-db" data-db="'+escapeHtml(db.name)+'" title="'+t('rename')+'"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2l3 3-7 7H3v-3z"/></svg></button>'
+          +'<button class="danger" data-action="delete-db" data-db="'+escapeHtml(db.name)+'" title="'+t('delete')+'"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h10M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M8 7v5M10 7v5M4 4l.7 8a1 1 0 001 .9h4.6a1 1 0 001-.9L12 4"/></svg></button>'
+        +'</div>'
+      +'</div>';
+    }).join('')+'</div>';
+}
+
+function renderDbDetail(){
+  const dbName = state.pageParams.db;
+  const db = state.allDatabases.find(d=>d.name===dbName);
+  if(!db) return '<div class="empty-state"><p>'+t('noDatabases')+'</p><button class="btn btn-ghost" data-nav="databases">'+t('back')+'</button></div>';
+
+  const extMap = {};
+  for(const f of db.files){
+    const e = f.ext||'other';
+    if(!extMap[e]) extMap[e]=[];
+    extMap[e].push(f);
+  }
+  const activeTab = state.pageParams.tab||'__all__';
+  const tabFiles = activeTab==='__all__' ? db.files : (extMap[activeTab]||[]);
+
+  return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">'
+    +'<button class="tool-btn" data-nav="databases"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2L4 8l6 6"/></svg>'+t('back')+'</button>'
+    +'<h1 style="font-size:1.2rem;font-weight:800;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(dbName)+'</h1>'
+    +'<span style="font-size:.82rem;color:var(--text-secondary);white-space:nowrap">'+db.files.length+' '+t('files')+' &middot; '+formatSize(db.totalSize)+'</span>'
+  +'</div>'
+  +'<div class="tabs">'
+    +'<button class="tab-btn'+(activeTab==='__all__'?' active':'')+'" data-action="db-tab" data-tab="__all__">'+t('allExtensions')+'<span class="tab-count">'+db.files.length+'</span></button>'
+    +Object.entries(extMap).sort((a,b)=>b[1].length-a[1].length).map(([ext,files])=>
+      '<button class="tab-btn'+(activeTab===ext?' active':'')+'" data-action="db-tab" data-tab="'+escapeHtml(ext)+'">'+escapeHtml(ext.toUpperCase())+'<span class="tab-count">'+files.length+'</span></button>'
+    ).join('')
+  +'</div>'
+  +renderToolbar(tabFiles, false);
+}
+
+function renderMediaPage(cat){
+  const files = state.allFiles.filter(f=>f.cat===cat);
+  const emptyKey = cat==='audio'?'noMusic':cat==='video'?'noVideos':'noImages';
+  if(!files.length)
+    return '<h1 style="font-size:1.3rem;font-weight:800;margin-bottom:20px">'+t(cat==='audio'?'music':cat==='video'?'videos':'images')+'</h1><div class="empty-state">'+getFileIcon(cat)+'<p>'+t(emptyKey)+'</p></div>';
+  return '<h1 style="font-size:1.3rem;font-weight:800;margin-bottom:20px">'+t(cat==='audio'?'music':cat==='video'?'videos':'images')+'</h1>'+renderToolbar(files);
+}
+
+function renderSettings(){
+  const themeKeys = Object.keys(THEMES);
+  return '<h1 style="font-size:1.3rem;font-weight:800;margin-bottom:24px">'+t('settings')+'</h1>'
+    +'<div class="settings-section"><h3>'+t('language')+'</h3>'
+      +'<div class="lang-btns">'
+        +'<button class="lang-btn'+(state.lang==='ar'?' active':'')+'" data-action="set-lang" data-lang="ar">العربية</button>'
+        +'<button class="lang-btn'+(state.lang==='en'?' active':'')+'" data-action="set-lang" data-lang="en">English</button>'
+      +'</div>'
+    +'</div>'
+    +'<div class="settings-section"><h3>'+t('theme')+'</h3>'
+      +'<div class="theme-grid">'+themeKeys.map(k=>
+        '<div class="theme-option'+(state.theme===k?' active':'')+'" data-action="set-theme" data-theme="'+k+'"><div class="to-preview" style="background:'+THEMES[k].preview+'"></div>'+THEMES[k].label[state.lang]+'</div>'
+      ).join('')+'</div>'
+    +'</div>'
+    +'<div class="settings-section"><h3>'+t('effects')+'</h3>'
+      +'<div class="setting-row">'
+        +'<div><div class="sr-label">'+t('matrixRain')+'</div><div class="sr-desc">'+t('matrixIntensity')+'</div></div>'
+        +'<div style="display:flex;align-items:center;gap:12px">'
+          +'<input type="range" min="5" max="100" value="'+state.matrixIntensity+'" data-action="matrix-intensity" style="width:100px">'
+          +'<div class="toggle'+(state.matrixRain?' on':'')+'" data-action="toggle-matrix"></div>'
+        +'</div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="settings-section"><h3>'+t('about')+'</h3>'
+      +'<div class="setting-row"><div class="sr-label">'+t('appName')+'</div><span style="font-size:.85rem;color:var(--text-secondary)">v1.0</span></div>'
+      +'<div class="setting-row"><div class="sr-label">'+t('version')+'</div><span style="font-size:.85rem;color:var(--text-secondary)">1.0.0</span></div>'
+    +'</div>'
+    +'<div class="settings-section">'
+      +'<button class="btn btn-danger" data-action="clear-all" style="width:100%;justify-content:center;display:flex;align-items:center;gap:8px">'
+        +'<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h10M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M8 7v5M10 7v5M4 4l.7 8a1 1 0 001 .9h4.6a1 1 0 001-.9L12 4"/></svg>'
+        +t('clearAllData')
+      +'</button>'
+    +'</div>';
+}
+
+/* ===== معاينة ===== */
+let currentPreviewFile = null;
+function findFileById(id){ return state.allFiles.find(f=>f.id===id); }
+
+function openPreview(file){
+  currentPreviewFile = file;
+  document.getElementById('preview-name').textContent = file.name;
+  const body = document.getElementById('preview-body');
+  const url = URL.createObjectURL(file.blob);
+  const ext = file.ext;
+  const cat = file.cat;
+
+  if(cat==='image'){
+    body.innerHTML = '<img src="'+url+'" alt="'+escapeHtml(file.name)+'" onload="URL.revokeObjectURL(this.src)">';
+    document.getElementById('preview-modal').classList.add('visible');
+  } else if(cat==='audio'){
+    body.innerHTML = '<div style="width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;gap:16px"><div style="width:80px;height:80px;border-radius:50%;background:var(--accent-dim);display:flex;align-items:center;justify-content:center">'+FILE_ICONS.audio+'</div><audio controls autoplay src="'+url+'" style="width:100%"></audio></div>';
+    document.getElementById('preview-modal').classList.add('visible');
+  } else if(cat==='video'){
+    body.innerHTML = '<video controls autoplay src="'+url+'" style="max-width:100%;max-height:65vh;border-radius:8px"></video>';
+    document.getElementById('preview-modal').classList.add('visible');
+  } else if(cat==='text' || TEXT_EXTS.includes(ext)){
+    file.blob.text().then(txt=>{
+      body.innerHTML = '<pre>'+escapeHtml(txt)+'</pre>';
+      URL.revokeObjectURL(url);
+    }).catch(()=>{
+      body.innerHTML = '<div class="no-preview">'+FILE_ICONS.other+'<p>'+t('noPreviewAvailable')+'</p></div>';
+      URL.revokeObjectURL(url);
+    });
+    document.getElementById('preview-modal').classList.add('visible');
+  } else if(ext==='pdf'){
+    body.innerHTML = '<iframe src="'+url+'" style="width:100%;height:65vh;border:none;border-radius:8px"></iframe>';
+    document.getElementById('preview-modal').classList.add('visible');
+  } else {
+    /* محاولة عرض كنص أو هيكسي */
+    const clone = file.blob.slice(0, 5000);
+    clone.text().then(txt=>{
+      const isPrintable = /^[\x20-\x7E\t\n\r]*$/.test(txt);
+      if(isPrintable && txt.trim().length > 0){
+        body.innerHTML = '<pre>'+escapeHtml(txt)+(file.size>5000?'\n\n...':'')+'</pre>';
+      } else {
+        const arr = new Uint8Array(file.blob.slice(0, 512));
+        let hex = '';
+        for(let i=0; i<arr.length; i+=16){
+          const addr = i.toString(16).padStart(8,'0');
+          let hp='', ap='';
+          for(let j=0;j<16;j++){
+            if(i+j<arr.length){
+              hp += arr[i+j].toString(16).padStart(2,'0')+' ';
+              ap += (arr[i+j]>=32&&arr[i+j]<=126)?String.fromCharCode(arr[i+j]):'.';
+            } else { hp+='   '; }
+          }
+          hex += addr+'  '+hp+' '+ap+'\n';
+        }
+        body.innerHTML = '<pre style="font-size:.75rem;line-height:1.4">'+escapeHtml(hex)+(file.size>512?'\n...':'')+'</pre>';
+      }
+      URL.revokeObjectURL(url);
+    }).catch(()=>{
+      body.innerHTML = '<div class="no-preview">'+FILE_ICONS.other+'<p>'+t('noPreviewAvailable')+'</p><div style="font-size:.82rem;color:var(--text-secondary);margin-top:4px">'+escapeHtml(file.type)+' &middot; '+formatSize(file.size)+'</div></div>';
+      URL.revokeObjectURL(url);
+    });
+    document.getElementById('preview-modal').classList.add('visible');
+  }
+}
+
+function closePreview(){
+  document.getElementById('preview-modal').classList.remove('visible');
+  const body = document.getElementById('preview-body');
+  body.querySelectorAll('audio,video').forEach(el=>{el.pause();el.src='';});
+  body.querySelectorAll('iframe').forEach(el=>{el.src='';});
+  body.innerHTML='';
+  currentPreviewFile = null;
+}
+
+function downloadPreviewFile(){
+  if(currentPreviewFile) downloadFileById(currentPreviewFile.id);
+}
+
+function downloadFileById(id){
+  const f = findFileById(id);
+  if(!f) return;
+  const url = URL.createObjectURL(f.blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = f.name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+/* ===== مشغل الصوت ===== */
+const audioEl = document.getElementById('audio-element');
+let audioPlaying = false;
+
+function playAudioFile(file){
+  state.currentAudioFile = file;
+  const url = URL.createObjectURL(file.blob);
+  audioEl.src = url;
+  audioEl.play().catch(()=>{});
+  audioPlaying = true;
+  document.getElementById('apb-title').textContent = file.name;
+  document.getElementById('apb-sub').textContent = file.database+' / '+file.store;
+  document.getElementById('audio-player-bar').classList.add('visible');
+  updatePlayIcon();
+}
+
+function togglePlayPause(){
+  if(!state.currentAudioFile) return;
+  if(audioPlaying){audioEl.pause();audioPlaying=false;}
+  else{audioEl.play().catch(()=>{});audioPlaying=true;}
+  updatePlayIcon();
+}
+
+function updatePlayIcon(){
+  document.getElementById('apb-play-icon').innerHTML = audioPlaying
+    ? '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>'
+    : '<path d="M8 5v14l11-7z"/>';
+}
+
+function seekAudio(val){ if(audioEl.duration) audioEl.currentTime = (val/100)*audioEl.duration; }
+function setVolume(val){ audioEl.volume = val/100; }
+
+function closeAudioPlayer(){
+  audioEl.pause(); audioEl.src=''; audioPlaying=false;
+  state.currentAudioFile = null;
+  document.getElementById('audio-player-bar').classList.remove('visible');
+}
+
+audioEl.addEventListener('timeupdate',()=>{
+  if(!audioEl.duration) return;
+  document.getElementById('apb-current').textContent = fmtTime(audioEl.currentTime);
+  document.getElementById('apb-duration').textContent = fmtTime(audioEl.duration);
+  document.getElementById('apb-seek').value = (audioEl.currentTime/audioEl.duration)*100;
+});
+audioEl.addEventListener('ended',()=>{audioPlaying=false;updatePlayIcon();});
+audioEl.volume = 0.8;
+
+function fmtTime(s){
+  if(!s||isNaN(s)) return '0:00';
+  const m=Math.floor(s/60), sec=Math.floor(s%60);
+  return m+':'+(sec<10?'0':'')+sec;
+}
+
+/* ===== مطر المصفوفة ===== */
+const matrixCanvas = document.getElementById('matrix-canvas');
+const mCtx = matrixCanvas.getContext('2d');
+let matrixActive = false, matrixAnimId = null, matrixDrops = [];
+const MATRIX_CHARS = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン$#@%&';
+
+function matrixResize(){
+  matrixCanvas.width = window.innerWidth;
+  matrixCanvas.height = window.innerHeight;
+  const fs = 14;
+  matrixDrops = Array.from({length: Math.floor(matrixCanvas.width/fs)}, ()=> Math.random()*matrixCanvas.height/fs|0);
+}
+
+function matrixDraw(){
+  if(!matrixActive) return;
+  const fs = 14;
+  const alpha = 0.03 + (state.matrixIntensity/100)*0.08;
+  mCtx.fillStyle = 'rgba(0,0,0,'+alpha+')';
+  mCtx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
+  mCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#00ff41';
+  mCtx.font = fs+'px monospace';
+  for(let i=0; i<matrixDrops.length; i++){
+    mCtx.fillText(MATRIX_CHARS[Math.random()*MATRIX_CHARS.length|0], i*fs, matrixDrops[i]*fs);
+    if(matrixDrops[i]*fs > matrixCanvas.height && Math.random()>0.975) matrixDrops[i]=0;
+    matrixDrops[i]++;
+  }
+  matrixAnimId = requestAnimationFrame(matrixDraw);
+}
+
+function startMatrix(){
+  if(matrixActive) return;
+  matrixActive = true;
+  matrixCanvas.classList.remove('hidden');
+  matrixResize();
+  matrixDraw();
+}
+
+function stopMatrix(){
+  matrixActive = false;
+  if(matrixAnimId) cancelAnimationFrame(matrixAnimId);
+  matrixCanvas.classList.add('hidden');
+  mCtx.clearRect(0,0,matrixCanvas.width,matrixCanvas.height);
+}
+
+/* ===== السمات واللغة ===== */
+function applyTheme(name){
+  const theme = THEMES[name];
+  if(!theme) return;
+  const root = document.documentElement;
+  for(const [k,v] of Object.entries(theme)){
+    if(k.startsWith('--')) root.style.setProperty(k,v);
+  }
+  state.theme = name;
+  localStorage.setItem('dbm_theme',name);
+  if(matrixActive){stopMatrix();startMatrix();}
+}
+
+function applyLang(lang){
+  state.lang = lang;
+  localStorage.setItem('dbm_lang',lang);
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang==='ar'?'rtl':'ltr';
+  renderSidebar();
+  document.getElementById('topbar-title').textContent = t(state.currentPage);
+  renderPage();
+}
+
+/* ===== الأحداث ===== */
+document.getElementById('content').addEventListener('click', function(e){
+  const navEl = e.target.closest('[data-nav]');
+  if(navEl){navigate(navEl.dataset.nav);return;}
+
+  const actEl = e.target.closest('[data-action]');
+  if(!actEl) return;
+  const action = actEl.dataset.action;
+
+  switch(action){
+    case 'preview':{
+      const f = findFileById(actEl.dataset.id);
+      if(f){ f.cat==='audio' ? playAudioFile(f) : openPreview(f); }
+      break;
+    }
+    case 'download': downloadFileById(actEl.dataset.id); break;
+
+    case 'delete-file':{
+      const f = findFileById(actEl.dataset.id);
+      if(f) showModal('<h3>'+t('delete')+'</h3><p>'+t('deleteFileConfirm')+escapeHtml(f.name)+'"?</p><div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">'+t('cancel')+'</button><button class="btn btn-danger" data-action="confirm-delete-file" data-id="'+escapeHtml(f.id)+'">'+t('delete')+'</button></div>');
+      break;
+    }
+    case 'confirm-delete-file':{
+      const f = findFileById(actEl.dataset.id);
+      if(f){
+        deleteFileFromDB(f.database,f.store,f.recordKey).then(()=>{
+          state.allFiles = state.allFiles.filter(x=>x.id!==f.id);
+          for(const db of state.allDatabases){
+            if(db.name===f.database){
+              db.files = db.files.filter(x=>x.id!==f.id);
+              db.totalSize -= (f.size||0);
+              for(const s of db.stores){if(s.name===f.store) s.files=s.files.filter(x=>x.id!==f.id);}
+            }
+          }
+          closeModal(); toast(t('deleted'));
+          renderPage();
+        }).catch(err=>{toast(err.message,'error');closeModal();});
+      }
+      break;
+    }
+    case 'open-db': navigate('dbDetail',{db:actEl.dataset.db}); break;
+    case 'db-tab': state.pageParams.tab = actEl.dataset.tab; renderPage(); break;
+
+    case 'delete-db':{
+      const name = actEl.dataset.db;
+      showModal('<h3>'+t('delete')+'</h3><p>'+t('deleteDbConfirm')+escapeHtml(name)+'"?</p><div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">'+t('cancel')+'</button><button class="btn btn-danger" data-action="confirm-delete-db" data-db="'+escapeHtml(name)+'">'+t('delete')+'</button></div>');
+      break;
+    }
+    case 'confirm-delete-db':{
+      const name = actEl.dataset.db;
+      deleteDatabase(name).then(()=>{
+        state.allDatabases = state.allDatabases.filter(d=>d.name!==name);
+        state.allFiles = state.allFiles.filter(f=>f.database!==name);
+        closeModal(); toast(t('dbDeleted'));
+        if(state.currentPage==='dbDetail') navigate('databases'); else renderPage();
+      }).catch(err=>{toast(err.message,'error');closeModal();});
+      break;
+    }
+    case 'rename-db':{
+      const name = actEl.dataset.db;
+      showModal('<h3>'+t('rename')+'</h3><p>'+t('enterNewName')+'</p><input type="text" id="rename-input" value="'+escapeHtml(name)+'"><div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">'+t('cancel')+'</button><button class="btn btn-primary" data-action="confirm-rename-db" data-old="'+escapeHtml(name)+'">'+t('save')+'</button></div>');
+      setTimeout(()=>{const inp=document.getElementById('rename-input');if(inp){inp.focus();inp.select();}},100);
+      break;
+    }
+    case 'confirm-rename-db':{
+      const oldName = actEl.dataset.old;
+      const newName = document.getElementById('rename-input')?.value?.trim();
+      if(!newName||newName===oldName){closeModal();return;}
+      renameDatabase(oldName,newName).then(()=>{
+        closeModal(); toast(t('renamed'));
+        reloadApp();
+      }).catch(err=>{toast(err.message,'error');closeModal();});
+      break;
+    }
+    case 'set-view':
+      state.viewMode = actEl.dataset.view;
+      localStorage.setItem('dbm_view',state.viewMode);
+      renderPage();
+      break;
+    case 'refresh': reloadApp(); break;
+    case 'set-theme': applyTheme(actEl.dataset.theme); renderPage(); break;
+    case 'set-lang': applyLang(actEl.dataset.lang); break;
+    case 'toggle-matrix':
+      state.matrixRain = !state.matrixRain;
+      localStorage.setItem('dbm_matrix',state.matrixRain);
+      if(state.matrixRain) startMatrix(); else stopMatrix();
+      renderPage();
+      break;
+    case 'clear-all':
+      showModal('<h3>'+t('clearAllData')+'</h3><p>'+t('deleteAllConfirm')+'</p><div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal()">'+t('cancel')+'</button><button class="btn btn-danger" data-action="confirm-clear-all">'+t('confirm')+'</button></div>');
+      break;
+    case 'confirm-clear-all':{
+      Promise.all(state.allDatabases.map(d=>deleteDatabase(d.name))).then(()=>{
+        closeModal(); toast(t('allCleared'));
+        reloadApp();
+      }).catch(err=>{toast(err.message,'error');closeModal();});
+      break;
+    }
+  }
+});
+
+/* البحث الفوري بدون إعادة بناء الصفحة بالكامل */
+document.getElementById('content').addEventListener('input', function(e){
+  if(e.target.id === 'search-input'){
+    state.searchQuery = e.target.value;
+    const container = e.target.closest('.toolbar')?.nextElementSibling;
+    if(!container) return;
+
+    const page = state.currentPage;
+    let files = [];
+    if(page==='allFiles') files = state.allFiles;
+    else if(page==='music') files = state.allFiles.filter(f=>f.cat==='audio');
+    else if(page==='videos') files = state.allFiles.filter(f=>f.cat==='video');
+    else if(page==='images') files = state.allFiles.filter(f=>f.cat==='image');
+    else if(page==='dbDetail'){
+      const db = state.allDatabases.find(d=>d.name===state.pageParams.db);
+      if(db){
+        const tab = state.pageParams.tab||'__all__';
+        files = tab==='__all__' ? db.files : db.files.filter(f=>f.ext===tab);
+      }
+    }
+
+    const filtered = sortFiles(getFilteredFiles(files, state.searchQuery));
+    const countEl = e.target.closest('.toolbar')?.querySelector('.search-count');
+    if(countEl) countEl.textContent = filtered.length+(filtered.length===1?' '+t('results'):' '+t('resultsPlural'));
+
+    if(!filtered.length){
+      container.innerHTML = '<div class="empty-state">'+FILE_ICONS.other+'<p>'+t('noResults')+'</p></div>';
+      container.className = '';
+      container.style = '';
+    } else if(state.viewMode==='grid'){
+      container.className = 'file-grid';
+      container.style = '';
+      container.innerHTML = filtered.map(renderFileCard).join('');
+    } else {
+      container.className = 'file-list';
+      container.style = 'display:flex;flex-direction:column;gap:2px';
+      container.innerHTML = filtered.map(renderFileRow).join('');
+    }
+  }
+
+  if(e.target.id === 'sort-select'){
+    state.sortMode = e.target.value;
+    renderPage();
+  }
+
+  if(e.target.dataset.action === 'matrix-intensity'){
+    state.matrixIntensity = parseInt(e.target.value);
+    localStorage.setItem('dbm_matrix_int', state.matrixIntensity);
+  }
+});
+
+document.getElementById('sidebar-nav').addEventListener('click', function(e){
+  const item = e.target.closest('[data-nav]');
+  if(item) navigate(item.dataset.nav);
+});
+
+document.getElementById('modal-overlay').addEventListener('click', function(e){
+  if(e.target===e.currentTarget) closeModal();
+});
+document.getElementById('preview-modal').addEventListener('click', function(e){
+  if(e.target===e.currentTarget) closePreview();
+});
+
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape'){closePreview();closeModal();}
+});
+
+window.addEventListener('resize', function(){
+  if(matrixActive) matrixResize();
+});
+
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+
+async function reloadApp(){
+  const ls = document.getElementById('loading-screen');
+  ls.classList.remove('hidden');
+  document.getElementById('loading-bar').style.width = '0%';
+  try{ await scanAllData(); } catch(e){ console.error(e); }
+  ls.classList.add('hidden');
+  renderPage();
+}
+
+/* ===== التهيئة — مع ضمان إخفاء شاشة التحميل ===== */
+(async function init(){
+  try {
+    applyTheme(state.theme);
+    applyLang(state.lang);
+    if(state.matrixRain) startMatrix();
+    renderSidebar();
+    document.getElementById('topbar-title').textContent = t('dashboard');
+    await scanAllData();
+  } catch(e){
+    console.error('Init error:', e);
+  } finally {
+    /* ضمان إخفاء شاشة التحميل حتى لو حدث خطأ */
+    document.getElementById('loading-screen').classList.add('hidden');
+    renderPage();
+  }
+})();
+</script>
+</body>
+</html>
